@@ -8,41 +8,39 @@ import { CompileFunction } from '../api/firebaseTypes';
 import { QuerySyntaxEnum, IQueryScheme, IQuerySchemeArray, IQuerySchemeElement, IDatabaseDriver, IQuery } from '@chego/chego-api';
 import { isQueryScheme } from '@chego/chego-tools';
 
+const isPrimaryCommand = (type: QuerySyntaxEnum) => type === QuerySyntaxEnum.Select
+    || type === QuerySyntaxEnum.Update
+    || type === QuerySyntaxEnum.Insert
+    || type === QuerySyntaxEnum.Delete;
 
-
-const isPrimaryCommand = (type:QuerySyntaxEnum) => type === QuerySyntaxEnum.Select 
-|| type === QuerySyntaxEnum.Update 
-|| type === QuerySyntaxEnum.Insert 
-|| type === QuerySyntaxEnum.Delete;
-
-const parseScheme = (scheme:IQueryScheme):IQueryContext[] => {
-    let queryScope:IQueryContext[] = [];
-    let queryContext:IQueryContext;
-    const schemeArr:IQuerySchemeArray = scheme.toArray();
-    schemeArr.map((element:IQuerySchemeElement, index:number) => {
-        if(isPrimaryCommand(element.type)) {
+const parseScheme = (scheme: IQueryScheme): IQueryContext[] => {
+    let queryScope: IQueryContext[] = [];
+    let queryContext: IQueryContext;
+    const schemeArr: IQuerySchemeArray = scheme.toArray();
+    schemeArr.map((element: IQuerySchemeElement, index: number) => {
+        if (isPrimaryCommand(element.type)) {
             queryContext = newQueryContext(element.type);
             queryScope.unshift(queryContext);
         }
-        let args:any = element.params;
-        if(Array.isArray(element.params) && isQueryScheme(element.params[0])) {
-            const subQueryScope:IQueryContext[] = parseScheme(element.params[0]);
-            queryScope =  [...subQueryScope, ...queryScope];
-            const subQuery:IQueryContext = subQueryScope[0];
+        let args: any = element.params;
+        if (Array.isArray(element.params) && isQueryScheme(element.params[0])) {
+            const subQueryScope: IQueryContext[] = parseScheme(element.params[0]);
+            queryScope = [...subQueryScope, ...queryScope];
+            const subQuery: IQueryContext = subQueryScope[0];
             args = [subQuery.result];
         }
-        if(validators.has(element.type)) {
+        if (validators.has(element.type)) {
             validators.get(element.type)(args);
         }
-        if(handles.has(element.type)) {
+        if (handles.has(element.type)) {
             handles.get(element.type)({ queryContext, args, index });
         }
     });
     return queryScope;
 };
 
-const compileQuery = async (query:IQueryContext) => {
-    const compile:CompileFunction = query && pipelines.get(query.type);
+const compileQuery = async (query: IQueryContext) => {
+    const compile: CompileFunction = query && pipelines.get(query.type);
     const ref: firebase.database.Reference = firebase.app().database().ref();
 
     if (compile) {
@@ -56,38 +54,47 @@ const compileQuery = async (query:IQueryContext) => {
     throw new Error('compilator not found');
 }
 
-const onComplete = (result:any):Promise<any> => {
+const onComplete = (result: any): Promise<any> => {
     firebase.database().goOffline();
     return Promise.resolve(result);
 }
 
-const onFailure = (error:Error):Promise<any> => {
+const onFailure = (error: Error): Promise<any> => {
     firebase.database().goOffline();
     throw error;
 }
-export const chegoFirebase = ():IDatabaseDriver => {
-    let initialized:boolean = false;
-    const driver = {
-        initialize(config:any):IDatabaseDriver {
+
+const buildQueryScope = (query: IQuery) => () => {
+    const queryScope: IQueryContext[] = parseScheme(query.scheme);
+
+    if (!queryScope) {
+        throw new Error('Empty QueryScope');
+    }
+    
+    return Promise.resolve(queryScope);
+}
+const executeQueryScope = (queryScope: IQueryContext[]) => 
+    queryScope.reduce((queries, query) =>
+        queries.then(() => compileQuery(query)), Promise.resolve())
+
+export const chegoFirebase = (): IDatabaseDriver => {
+    let initialized: boolean = false;
+    const driver: IDatabaseDriver = {
+        initialize(config: any): IDatabaseDriver {
             firebase.initializeApp(config);
             initialized = true;
             return driver;
         },
-        execute:(query:IQuery): Promise<any> => {
-            if(!initialized) {
+        execute: async (queries: IQuery[]): Promise<any> => {
+            if (!initialized) {
                 throw new Error('Driver not initialized');
             }
-            const queryScope:IQueryContext[] = parseScheme(query.scheme);
 
-            if(!queryScope) {
-                throw new Error('Empty QueryScope');
-            }
-
-            return queryScope.reduce((queries, query) => 
-                queries.then(() => compileQuery(query))
-            , Promise.resolve())
-            .then(onComplete)
-            .catch(onFailure)
+            return queries.reduce((queries, query) =>
+                queries.then(buildQueryScope(query)).then(executeQueryScope),
+                Promise.resolve())
+                .then(onComplete)
+                .catch(onFailure)
         }
     }
     return driver;

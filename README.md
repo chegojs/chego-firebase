@@ -8,12 +8,12 @@ npm install --save @chego/chego-firebase
 ```
 
 ## Usage
-All you need to do to ensure that your queries are served by Google Firebase, simply create a new Chego object using the `firebaseDriver` and configuration object.
+All you need to do to ensure that your queries are served by Google Firebase, simply create a new Chego object using the `chegoFirebase` and configuration object.
 
 ```
 const { newChego } = require("@chego/chego");
-const { firebaseDriver } = require("@chego/chego-firebase");
-const chego = newChego(firebaseDriver, {
+const { chegoFirebase } = require("@chego/chego-firebase");
+const chego = newChego(chegoFirebase, {
     apiKey: "xxxxxxxxxxxxxxxxxxxx",
     authDomain: "some-domain.firebaseapp.com",
     databaseURL: "https://some-domain.firebaseio.com",
@@ -36,7 +36,7 @@ Whether you find a bug or have a feature request, please contact us. With your h
 
 Follow our kanban boards to be up to date
 
-[Kanban boards](https://github.com/chegojs/chego/blob/master/TODO.md)
+[Kanban boards](https://github.com/orgs/chegojs/projects/2)
 
 Join the team, feel free to catch any task or suggest a new one.
 
