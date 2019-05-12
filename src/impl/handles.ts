@@ -60,7 +60,7 @@ export const handleDelete = ({queryContext, args}:{queryContext:IQueryContext, a
     queryContext.data = args;
 }
 
-export const handleEqualTo = ({queryContext, args}:{queryContext:IQueryContext, args:any[]}) => 
+export const handleEQ = ({queryContext, args}:{queryContext:IQueryContext, args:any[]}) => 
     handleStatement(QuerySyntaxEnum.EQ, queryContext, args);
 
 export const handleFrom = ({queryContext, args}:{queryContext:IQueryContext, args:any[]}) => {
@@ -72,14 +72,14 @@ export const handleFrom = ({queryContext, args}:{queryContext:IQueryContext, arg
 }
 
 export const handleGT = ({queryContext, args}:{queryContext:IQueryContext, args:any[]}) => 
-    handleStatement(QuerySyntaxEnum.GT, queryContext, args[0]);
+    handleStatement(QuerySyntaxEnum.GT, queryContext, args);
 
 export const handleInsert = ({queryContext, args}:{queryContext:IQueryContext, args:any[]}) => {
     queryContext.data = args;
 }
 
 export const handleLike = () => {
-    console.log(`need to implement "like"`);
+    // TODO
 }
 
 export const handleLimit = ({queryContext, args}:{queryContext:IQueryContext, args:any[]}) => {
@@ -87,7 +87,7 @@ export const handleLimit = ({queryContext, args}:{queryContext:IQueryContext, ar
 }
 
 export const handleLT = ({queryContext, args}:{queryContext:IQueryContext, args:any[]}) => 
-    handleStatement(QuerySyntaxEnum.LT, queryContext, args[0]);
+    handleStatement(QuerySyntaxEnum.LT, queryContext, args);
 
 export const handleNot = ({queryContext}:{queryContext:IQueryContext}) => 
     handleStatement(QuerySyntaxEnum.Not, queryContext);
@@ -181,7 +181,7 @@ export const handleJoin = (type:JoinType) => ({queryContext, args}:{queryContext
 }
 
 export const handleUnion = () => {
-    console.log(`need to implement "union"`);
+    // TODO
 }
 
 export const handleGroupBy = ({queryContext, args}:{queryContext:IQueryContext, args:any[]}):void => {
@@ -192,7 +192,7 @@ export const handles = new Map<QuerySyntaxEnum, Fn>([
     [QuerySyntaxEnum.And, handleAnd],
     [QuerySyntaxEnum.Between, handleBetween],
     [QuerySyntaxEnum.Delete, handleDelete],
-    [QuerySyntaxEnum.EQ, handleEqualTo],
+    [QuerySyntaxEnum.EQ, handleEQ],
     [QuerySyntaxEnum.From, handleFrom],
     [QuerySyntaxEnum.GT, handleGT],
     [QuerySyntaxEnum.Insert, handleInsert],

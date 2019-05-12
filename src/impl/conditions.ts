@@ -1,7 +1,7 @@
 import { FormulaRegEx, Row } from '../api/firebaseTypes';
 import { QuerySyntaxEnum, Property, Fn, PropertyOrLogicalOperatorScope, FilterResultEnum } from '@chego/chego-api';
 import { templates } from './templates';
-import { isLogicalOperatorScope, isLogicalOperator, newLogicalOperatorScope } from '@chego/chego-tools';
+import { isLogicalOperatorScope, newLogicalOperatorScope } from '@chego/chego-tools';
 import { IConditions } from '../api/firebaseInterfaces';
 
 
@@ -77,6 +77,8 @@ export const testConditions = (row: Row) => (results: any[], condition: Fn) => {
     return results;
 }
 
+const isAndOr = (type:QuerySyntaxEnum):boolean => type === QuerySyntaxEnum.And || type === QuerySyntaxEnum.Or
+
 export const newConditions = (): IConditions => {
     const history: QuerySyntaxEnum[] = [];
     const functions: Fn[] = [];
@@ -87,7 +89,7 @@ export const newConditions = (): IConditions => {
             const lastType: QuerySyntaxEnum = history[history.length - 1];
             const penultimateType: QuerySyntaxEnum = history[history.length - 2];
             if (type === QuerySyntaxEnum.Where) {
-                if (isLogicalOperator(lastType) && penultimateType === QuerySyntaxEnum.Where) {
+                if (isAndOr(lastType) && penultimateType === QuerySyntaxEnum.Where) {
                     const lastKey: PropertyOrLogicalOperatorScope = keychain[keychain.length - 1];
                     if (!isLogicalOperatorScope(lastKey)) {
                         throw new Error(`Key ${lastKey} should be LogialOperatorScope type!`)
@@ -97,7 +99,7 @@ export const newConditions = (): IConditions => {
                     keychain = [...args];
                 }
             } else {
-                if (isLogicalOperator(type) && lastType === QuerySyntaxEnum.Where) {
+                if (isAndOr(type) && lastType === QuerySyntaxEnum.Where) {
                     keychain.push(newLogicalOperatorScope(type));
                 } else {
                     functions.push(...buildStatementFunctions(type, keychain.slice(), args));
