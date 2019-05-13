@@ -18,10 +18,10 @@ const cleanFormula = (formula: string): string => {
     return formulaExpressions.reduce(matchExpression(cleanedFormula), false) ? cleanFormula(cleanedFormula) : cleanedFormula;
 }
 
-export const getFunctionTemplate = (type: QuerySyntaxEnum, property?: Property, values?: any[]): Fn => {
+export const getFunctionTemplate = (type: QuerySyntaxEnum, property?: Property, ...values: any[]): Fn => {
     const template = templates.get(type);
     if (template) {
-        return template(values || [])(property || '');
+        return template(...values)(property);
     }
     throw new Error(`No template for ${QuerySyntaxEnum[type]}`);
 }
@@ -55,7 +55,10 @@ export const buildStatementFunctions = (type: QuerySyntaxEnum, keychain?: Proper
                 if (i > 0) {
                     functions.push(getFunctionTemplate(data.type));
                 }
-                functions.push(getFunctionTemplate(type, data, values));
+                functions.push(Array.isArray(values) 
+                    ? getFunctionTemplate(type, data, ...values)
+                    : getFunctionTemplate(type, data, values)
+                );
             }
         }
     }
