@@ -1,27 +1,19 @@
+import { IQueryContextBuilder } from './../api/firebaseInterfaces';
 import * as firebase from 'firebase';
 import { validators } from './validators';
-import { handles } from './handles';
 import { pipelines } from './pipelines/pipelines';
-import { newQueryContext } from './queryContext';
 import { IQueryContext } from '../api/firebaseInterfaces';
 import { CompileFunction } from '../api/firebaseTypes';
-import { QuerySyntaxEnum, IQueryScheme, IQuerySchemeArray, IQuerySchemeElement, IDatabaseDriver, IQuery } from '@chego/chego-api';
+import { IQueryScheme, IQuerySchemeArray, IQuerySchemeElement, IDatabaseDriver, IQuery } from '@chego/chego-api';
 import { isQueryScheme } from '@chego/chego-tools';
-
-const isPrimaryCommand = (type: QuerySyntaxEnum) => type === QuerySyntaxEnum.Select
-    || type === QuerySyntaxEnum.Update
-    || type === QuerySyntaxEnum.Insert
-    || type === QuerySyntaxEnum.Delete;
+import { newQueryContextBuilder } from './contextBuilder';
 
 const parseScheme = (scheme: IQueryScheme): IQueryContext[] => {
     let queryScope: IQueryContext[] = [];
-    let queryContext: IQueryContext;
+    const contextBuilder:IQueryContextBuilder = newQueryContextBuilder();
     const schemeArr: IQuerySchemeArray = scheme.toArray();
-    schemeArr.map((element: IQuerySchemeElement, index: number) => {
-        if (isPrimaryCommand(element.type)) {
-            queryContext = newQueryContext(element.type);
-            queryScope.unshift(queryContext);
-        }
+
+    schemeArr.map((element: IQuerySchemeElement) => {
         let args: any = element.params;
         if (Array.isArray(element.params) && isQueryScheme(element.params[0])) {
             const subQueryScope: IQueryContext[] = parseScheme(element.params[0]);
@@ -30,12 +22,11 @@ const parseScheme = (scheme: IQueryScheme): IQueryContext[] => {
             args = [subQuery.result];
         }
         if (validators.has(element.type)) {
-            validators.get(element.type)(args);
+            validators.get(element.type)(...args);
         }
-        if (handles.has(element.type)) {
-            handles.get(element.type)({ queryContext, args, index });
-        }
+        contextBuilder.with(element.type, args);
     });
+    queryScope.push(contextBuilder.build());
     return queryScope;
 };
 

@@ -1,7 +1,7 @@
 
 import { IQueryContext } from '../api/firebaseInterfaces';
 import { newConditions } from './conditions';
-import { IQueryResult, AnyButFunction, QuerySyntaxEnum } from '@chego/chego-api';
+import { IQueryResult, AnyButFunction } from '@chego/chego-api';
 
 const newQueryResult = ():IQueryResult => {
     let result:AnyButFunction;
@@ -16,8 +16,8 @@ const newQueryResult = ():IQueryResult => {
     }
 }
 
-export const newQueryContext = (type:QuerySyntaxEnum):IQueryContext => ({
-    type,
+export const newQueryContext = ():IQueryContext => ({
+    type:null,
     result:newQueryResult(),
     data:[],
     tables:[],

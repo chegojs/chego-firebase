@@ -41,7 +41,7 @@ export const sendUpdatedContent = (ref: firebase.database.Reference) => (data:an
 export const runUpdatePipeline = async (ref: firebase.database.Reference, queryContext: IQueryContext): Promise<any> =>
     new Promise((resolve, reject) => executeQuery(ref, queryContext)
         .then(filterQueryResultsIfRequired(queryContext))
-        .then(updateContent(queryContext.data))
+        .then(updateContent(queryContext.data[0]))
         .then(convertMapToInputData)
         .then(sendUpdatedContent(ref))
         .then(resolve)

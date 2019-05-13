@@ -13,6 +13,18 @@ export const newRow = ({ table = null, key = '', scheme = [], content = {} }: Ro
 
 export const newJoin = (type:JoinType, property:Property): Join => ({type, propertyB:property, propertyA:newProperty({})});
 
+export const newJoinBuilder = (type:JoinType, property:Property) => {
+    let propertyA:Property;
+
+    const builder = {
+        withOn:(property:Property) => {
+            propertyA = property;
+        },
+        build:() => ({type, propertyB:property, propertyA})
+    }
+    return builder;
+}
+
 export const combineRows = (rowA: Row, rowB: Row): Row => {
     const content: any = Object.assign({}, rowA.content);
 
