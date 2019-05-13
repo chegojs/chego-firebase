@@ -8,7 +8,7 @@ const validateWhere = (values: any[]) => {
     if (isLogicalOperatorScope(values[0])) {
         throw new Error('First condition key is logical operator')
     }
-    noArgsValidation(...values);
+    noArgsValidation(values);
 }
 
 const noArgsValidation = (...args: any[]) => {

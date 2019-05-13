@@ -4,7 +4,7 @@ import { validators } from './validators';
 import { pipelines } from './pipelines/pipelines';
 import { IQueryContext } from '../api/firebaseInterfaces';
 import { CompileFunction } from '../api/firebaseTypes';
-import { IQueryScheme, IQuerySchemeArray, IQuerySchemeElement, IDatabaseDriver, IQuery } from '@chego/chego-api';
+import { IQueryScheme, IQuerySchemeArray, IQuerySchemeElement, IDatabaseDriver, IQuery, Fn } from '@chego/chego-api';
 import { isQueryScheme } from '@chego/chego-tools';
 import { newQueryContextBuilder } from './contextBuilder';
 
@@ -45,16 +45,6 @@ const compileQuery = async (query: IQueryContext) => {
     throw new Error('compilator not found');
 }
 
-const onComplete = (result: any): Promise<any> => {
-    firebase.database().goOffline();
-    return Promise.resolve(result);
-}
-
-const onFailure = (error: Error): Promise<any> => {
-    firebase.database().goOffline();
-    throw error;
-}
-
 const buildQueryScope = (query: IQuery) => () => {
     const queryScope: IQueryContext[] = parseScheme(query.scheme);
 
@@ -76,7 +66,7 @@ export const chegoFirebase = (): IDatabaseDriver => {
             initialized = true;
             return driver;
         },
-        execute: async (queries: IQuery[]): Promise<any> => {
+        execute: async (queries: IQuery[]): Promise<any> => new Promise((resolve, reject) => {
             if (!initialized) {
                 throw new Error('Driver not initialized');
             }
@@ -84,9 +74,21 @@ export const chegoFirebase = (): IDatabaseDriver => {
             return queries.reduce((queries, query) =>
                 queries.then(buildQueryScope(query)).then(executeQueryScope),
                 Promise.resolve())
-                .then(onComplete)
-                .catch(onFailure)
-        }
+                .then(resolve)
+                .catch(reject)
+        }),
+        connect(callback:Fn) {
+            firebase.database().goOnline();
+            if(callback) {
+                callback();
+            }
+        },
+        disconnect(callback:Fn) {
+            firebase.database().goOffline();
+            if(callback) {
+                callback();
+            }
+        },
     }
     return driver;
 }
