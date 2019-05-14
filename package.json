@@ -1,6 +1,6 @@
 {
   "name": "@chego/chego-firebase",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Google Firebase driver for Chego library.",
   "main": "lib/index.js",
   "files": [

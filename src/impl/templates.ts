@@ -5,35 +5,42 @@ import { AnyButFunction, Obj, QuerySyntaxTemplate, Property, FilterResultEnum, Q
 import { isAlias, isRowId } from '@chego/chego-tools';
 
 
-export const getQueryResultValues = (data:AnyButFunction):AnyButFunction[] => {
-    const results:AnyButFunction[] = [];
-    Object.values(data).forEach((table:Obj) =>
-        Object.values(table).forEach((row:Obj) => results.push(...Object.values(row)))
+export const getQueryResultValues = (data: AnyButFunction): AnyButFunction[] => {
+    const results: AnyButFunction[] = [];
+    Object.values(data).forEach((table: Obj) =>
+        Object.values(table).forEach((row: Obj) => results.push(...Object.values(row)))
     );
     return results;
 }
 
-const parseValue = (value:AnyButFunction):AnyButFunction => {
-    if(typeof value === 'string') {
-        const dateInMilliseconds:number = Date.parse(value);
-        if(!isNaN(dateInMilliseconds)) {
+const parseValue = (value: AnyButFunction): AnyButFunction => {
+    if (typeof value === 'string') {
+        const dateInMilliseconds: number = Date.parse(value);
+        if (!isNaN(dateInMilliseconds)) {
             return dateInMilliseconds;
         }
     }
     return value;
 }
 
-const isEq = (a:AnyButFunction,b:AnyButFunction):boolean => parseValue(a) === parseValue(b);
-const isGt = (a:AnyButFunction,b:AnyButFunction):boolean => parseValue(a) > parseValue(b);
-const isLt = (a:AnyButFunction,b:AnyButFunction):boolean => parseValue(a) < parseValue(b);
-const isBetween = (a:AnyButFunction, min:AnyButFunction, max:AnyButFunction):boolean => 
+const isEq = (a: AnyButFunction, b: AnyButFunction): boolean =>
+    typeof a === 'object' && typeof b === 'object'
+        ? JSON.stringify(a) === JSON.stringify(b)
+        : parseValue(a) === parseValue(b);
+
+const isGt = (a: AnyButFunction, b: AnyButFunction): boolean => parseValue(a) > parseValue(b);
+const isLt = (a: AnyButFunction, b: AnyButFunction): boolean => parseValue(a) < parseValue(b);
+const isBetween = (a: AnyButFunction, min: AnyButFunction, max: AnyButFunction): boolean =>
     parseValue(a) >= parseValue(min) && parseValue(a) <= parseValue(max);
 
-const runCondition = (condition:(...args:AnyButFunction[])=>boolean, ...values:any[]):boolean => {
-    const data:AnyButFunction[] = [];
-    values.forEach((value:any) => { 
-        if(isQueryResult(value)) {
-            const values:AnyButFunction[] = getQueryResultValues(value.getData());
+const isLikeString = (a: string, b: string): boolean =>
+    new RegExp(`^${b.replace(/(?<!\\)\%/g, '.*').replace(/(?<!\\)\_/g, '.')}$`, 'g').test(a);
+
+const runCondition = (condition: (...args: AnyButFunction[]) => boolean, ...values: any[]): boolean => {
+    const data: AnyButFunction[] = [];
+    values.forEach((value: any) => {
+        if (isQueryResult(value)) {
+            const values: AnyButFunction[] = getQueryResultValues(value.getData());
             data.push(...values);
         } else {
             data.push(value);
@@ -42,7 +49,7 @@ const runCondition = (condition:(...args:AnyButFunction[])=>boolean, ...values:a
     return condition(...data);
 }
 
-const select: QuerySyntaxTemplate = (property: Property) => (content:any) => (row: Row) => {
+const select: QuerySyntaxTemplate = (property: Property) => (content: any) => (row: Row) => {
     if (row.table.name === property.table.name) {
         if (isAlias(property)) {
             content[property.alias] = row.content[property.name];
@@ -50,7 +57,7 @@ const select: QuerySyntaxTemplate = (property: Property) => (content:any) => (ro
         else if (isRowId(property)) {
             content[property.alias] = row.key;
         }
-        else if(property.name === '*') {
+        else if (property.name === '*') {
             content = Object.assign(content, row.content);
         }
         else {
@@ -60,44 +67,40 @@ const select: QuerySyntaxTemplate = (property: Property) => (content:any) => (ro
     return content;
 }
 
-const eq:QuerySyntaxTemplate = (value:any) => (property:Property) => (row:Row) => 
+const conditionTemplate = (condition: (...args: AnyButFunction[]) => boolean, row: Row, property: Property, ...values: any[]) =>
     row.table.name === property.table.name
         ? isRowId(property)
-            ? Number(runCondition(isEq, row.key, value))
-            : Number(runCondition(isEq, row.content[property.name], value))
-        :  FilterResultEnum.Skipped;
-
-const isNull:QuerySyntaxTemplate = () => (property:Property) => eq(null)(property);
-
-const gt: QuerySyntaxTemplate = (value: number | string) => (property:Property) => (row: Row) =>
-    row.table.name === property.table.name
-        ? isRowId(property)
-        ? Number(runCondition(isGt, row.key, value))
-        : Number(runCondition(isGt, row.content[property.name], value))
+            ? Number(runCondition(condition, row.key, ...values))
+            : Number(runCondition(condition, row.content[property.name], ...values))
         : FilterResultEnum.Skipped;
 
-const lt: QuerySyntaxTemplate = (value: number | string) => (property:Property) => (row: Row) =>
-    row.table.name === property.table.name
-        ? isRowId(property)
-        ? Number(runCondition(isLt, row.key, value))
-        : Number(runCondition(isLt, row.content[property.name], value))
-        : FilterResultEnum.Skipped;
+const eq: QuerySyntaxTemplate = (value: any) => (property: Property) => (row: Row) =>
+    conditionTemplate(isEq, row, property, value);
 
-const between: QuerySyntaxTemplate = (min: number, max: number) => (property:Property) => (row: Row) =>
-    row.table.name === property.table.name
-        ? isRowId(property)
-        ? Number(runCondition(isBetween, row.key, min, max))
-        : Number(runCondition(isBetween, row.content[property.name], min, max))
-        : FilterResultEnum.Skipped;
+const isNull: QuerySyntaxTemplate = () => (property: Property) => eq(null)(property);
 
-const and:QuerySyntaxTemplate = () => () => () => '&&';
-const or:QuerySyntaxTemplate = () => () => () => '||';
-const not:QuerySyntaxTemplate = () => () => () => '!';
+const gt: QuerySyntaxTemplate = (value: number | string) => (property: Property) => (row: Row) =>
+    conditionTemplate(isGt, row, property, value);
 
-const openParentheses:QuerySyntaxTemplate = () => () => () => '(';
-const closeParentheses:QuerySyntaxTemplate = () => () => () => ')';
+const lt: QuerySyntaxTemplate = (value: number | string) => (property: Property) => (row: Row) =>
+    conditionTemplate(isLt, row, property, value);
 
-export const templates:Map<QuerySyntaxEnum, QuerySyntaxTemplate> = new Map<QuerySyntaxEnum, QuerySyntaxTemplate>([
+const between: QuerySyntaxTemplate = (min: number, max: number) => (property: Property) => (row: Row) =>
+    conditionTemplate(isBetween, row, property, min, max);
+
+const like: QuerySyntaxTemplate = (value: any) => (property: Property) => (row: Row) =>
+    typeof value === 'string'
+        ? conditionTemplate(isLikeString, row, property, value)
+        : conditionTemplate(isEq, row, property, value);
+
+const and: QuerySyntaxTemplate = () => () => () => '&&';
+const or: QuerySyntaxTemplate = () => () => () => '||';
+const not: QuerySyntaxTemplate = () => () => () => '!';
+
+const openParentheses: QuerySyntaxTemplate = () => () => () => '(';
+const closeParentheses: QuerySyntaxTemplate = () => () => () => ')';
+
+export const templates: Map<QuerySyntaxEnum, QuerySyntaxTemplate> = new Map<QuerySyntaxEnum, QuerySyntaxTemplate>([
     [QuerySyntaxEnum.Select, select],
     [QuerySyntaxEnum.EQ, eq],
     [QuerySyntaxEnum.Null, isNull],
@@ -109,4 +112,5 @@ export const templates:Map<QuerySyntaxEnum, QuerySyntaxTemplate> = new Map<Query
     [QuerySyntaxEnum.OpenParentheses, openParentheses],
     [QuerySyntaxEnum.CloseParentheses, closeParentheses],
     [QuerySyntaxEnum.Between, between],
+    [QuerySyntaxEnum.Like, like],
 ]);
