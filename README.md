@@ -22,9 +22,24 @@ const chego = newChego(chegoFirebase, {
     messagingSenderId: "3252523423"
 });
 
-...
+chego.connect();
+const query = newQuery();
+
+query.select('*').from('superheroes').where('origin').is.eq('Gotham City').limit(10);
+
+chego.execute(query)
+.then(result => { 
+    console.log('RESULT:', JSON.stringify(result));
+    chego.disconnect();
+})
+.catch(error => { 
+    console.log('ERROR:', error); 
+    chego.disconnect();
+});
+
 
 ```
+For more information on how `Chego` works with database drivers, please read [Chego Usage guide](https://github.com/chegojs/chego/blob/master/README.md).
 
 All the info about the Google firebase you can find [here](https://firebase.google.com/).
 
