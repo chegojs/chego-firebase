@@ -19,13 +19,6 @@ export const useLimitToLast = (limit: Limit): boolean => limit.count ? limit.cou
 
 export const shouldFilterRowContent = (properties: Property[]): boolean => properties && properties.length > 0 && properties[0].name !== '*';
 
-export const isWithinLimits = (index: number, limit: Limit): boolean =>
-    limit
-        ? limit.count
-            ? index >= limit.offsetOrCount && index < limit.count
-            : index < limit.offsetOrCount
-        : true;
-
 export const parseDataSnapshotToRows = (table: Table, data: any): Row[] => {
     const rows: Row[] = [];
     let content: any;
@@ -54,12 +47,10 @@ export const filterQueryResultsIfRequired = (queryContext: IQueryContext) => (qu
     const parsedResult: DataMap = newDataMap();
     const select = templates.get(QuerySyntaxEnum.Select);
     let tableRows: Row[];
-    let withinLimits: boolean;
 
     queryResult.forEach((rows: Row[], tableName: string) => {
         tableRows = rows.filter((row: Row, index: number) => {
-            withinLimits = isWithinLimits(index, queryContext.limit);
-            if (queryContext.conditions.test(row) && withinLimits) {
+            if (queryContext.conditions.test(row)) {
                 if (shouldFilterRowContent(queryContext.data) && queryContext.type === QuerySyntaxEnum.Select) {
                     row.content = queryContext.data.reduce((content: any, property: Property) => select(property)(content)(row), {});
                 }
@@ -87,20 +78,25 @@ export const convertMapToOutputData = (tablesMap: DataMap): OutputDataSnapshot =
     return results;
 }
 
-export const getTableContent = async (ref: firebase.database.Reference, table: Table, limit?: Limit): Promise<any> =>
-    new Promise(resolve => {
-        const query: firebase.database.Reference = ref.child(table.name);
+export const spliceQueryResultsIfRequired = (limit: Limit) => (data: any): any => {
+    if (limit) {
+        const range: number[] = limit.count
+            ? [limit.offsetOrCount, limit.count]
+            : limit.offsetOrCount < 0
+                ? [limit.offsetOrCount]
+                : [0, limit.offsetOrCount];
 
-        if (limit) {
-            if (useLimitToFirst(limit)) {
-                query.limitToFirst(limit.count ? limit.count + limit.offsetOrCount : limit.offsetOrCount);
-            }
-            else if (useLimitToLast(limit)) {
-                query.limitToLast(-1 * (limit.count ? limit.count : limit.offsetOrCount));
-            }
+        for(const table of Object.keys(data)) {
+            data[table] = data[table].slice(...range)
         }
-        query.once('value', (snapshot: firebase.database.DataSnapshot) => resolve(snapshot.val()));
-    });
+    }
+    return data;
+}
+
+export const getTableContent = async (ref: firebase.database.Reference, table: Table, limit?: Limit): Promise<any> =>
+    new Promise(resolve =>
+        ref.child(table.name).once('value', (snapshot: firebase.database.DataSnapshot) => resolve(snapshot.val()))
+    );
 
 export const runSelectPipeline = async (ref: firebase.database.Reference, queryContext: IQueryContext): Promise<any> =>
     new Promise((resolve, reject) => executeQuery(ref, queryContext)
@@ -110,6 +106,7 @@ export const runSelectPipeline = async (ref: firebase.database.Reference, queryC
         .then(convertMapToOutputData)
         .then(groupResultsIfRequired(queryContext))
         .then(orderResultsIfRequired(queryContext))
+        .then(spliceQueryResultsIfRequired(queryContext.limit))
         .then(resolve)
         .catch(reject)
     );

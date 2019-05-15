@@ -245,16 +245,16 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
         queryContext.conditions.add(...handleCondition(QuerySyntaxEnum.Null, handleConditionPerValue, keychain.slice(), args));
     }
 
-    const handleUnion = (...args: any[]): void => {
-        // TODO
-    }
-
     const handleExists = (...args: any[]): void => {
-        // TODO
+        queryContext.conditions.add(useTemplate(QuerySyntaxEnum.Exists, null, ...args));
     }
-
+    
     const handleIn = (...args: any[]): void => {
         queryContext.conditions.add(...handleCondition(QuerySyntaxEnum.In, handleValuesPerCondition, keychain.slice(), args));
+    }
+    
+    const handleUnion = (...args: any[]): void => {
+        // TODO
     }
 
     const handles = new Map<QuerySyntaxEnum, Fn>([
