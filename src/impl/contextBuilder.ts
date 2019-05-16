@@ -1,10 +1,12 @@
-import { JoinType } from './../api/firebaseTypes';
-import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, Fn, Table, FunctionData, Property, AnyButFunction, SortingData, QuerySyntaxTemplate } from '@chego/chego-api';
-import { IQueryContext, IQueryContextBuilder } from '../api/firebaseInterfaces';
+import { JoinType, Union } from './../api/firebaseTypes';
+import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, Fn, Table, FunctionData, Property, AnyButFunction, SortingData, QuerySyntaxTemplate, IQueryResult } from '@chego/chego-api';
+import { IQueryContext, IQueryContextBuilder, IJoinBuilder } from '../api/firebaseInterfaces';
 import { newQueryContext } from './queryContext';
 import { combineReducers, mergePropertiesWithLogicalAnd, isLogicalOperatorScope, isProperty, newLogicalOperatorScope, isMySQLFunction, isAliasString, newTable, isAlias, newSortingData, parseStringToProperty, newLimit } from '@chego/chego-tools';
-import { parseStringToSortingOrderEnum, newJoinBuilder } from './utils';
+import { parseStringToSortingOrderEnum } from './utils';
 import { templates } from './templates';
+import { newJoinBuilder } from './joins';
+import { newUnion } from './unions';
 
 const isPrimaryCommand = (type: QuerySyntaxEnum) => type === QuerySyntaxEnum.Select
     || type === QuerySyntaxEnum.Update
@@ -114,9 +116,11 @@ const handleCondition = (type: QuerySyntaxEnum, reducer: Fn, keychain?: Property
         : functions;
 }
 
+const parseResultsToUnions = (distinct:boolean) => (list:Union[], data:IQueryResult) => (list.push(newUnion(distinct, data)),list);
+
 export const newQueryContextBuilder = (): IQueryContextBuilder => {
     let keychain: PropertyOrLogicalOperatorScope[] = [];
-    let tempJoinBuilder: any;
+    let tempJoinBuilder: IJoinBuilder;
     const queryContext: IQueryContext = newQueryContext();
     const history: QuerySyntaxEnum[] = [];
 
@@ -156,14 +160,26 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
     }
 
     const handleJoin = (type: JoinType) => (...args: any[]): void => {
-        tempJoinBuilder = newJoinBuilder(type, args[0])
+        const defualtTable = queryContext.tables[0];
+        if(!defualtTable) {
+            throw new Error(`"defaultTable" is undefined`)
+        }
+        tempJoinBuilder = newJoinBuilder(type, defualtTable, args[0]);
     }
 
     const handleOn = (...args: any[]): void => {
         if (!tempJoinBuilder) {
             throw new Error(`"latestJoin" is undefined`)
         }
-        queryContext.joins.push(tempJoinBuilder.withOn(args[0]).build());
+        queryContext.joins.push(tempJoinBuilder.withOn(args[0], args[1]).build());
+        tempJoinBuilder = null;
+    }
+
+    const handleUsing = (...args: any[]): void => {
+        if (!tempJoinBuilder) {
+            throw new Error(`"latestJoin" is undefined`)
+        }
+        queryContext.joins.push(tempJoinBuilder.using(args[0]).build());
         tempJoinBuilder = null;
     }
 
@@ -245,16 +261,20 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
         queryContext.conditions.add(...handleCondition(QuerySyntaxEnum.Null, handleConditionPerValue, keychain.slice(), args));
     }
 
-    const handleUnion = (...args: any[]): void => {
-        // TODO
-    }
-
     const handleExists = (...args: any[]): void => {
-        // TODO
+        queryContext.conditions.add(useTemplate(QuerySyntaxEnum.Exists, null, ...args));
     }
-
+    
     const handleIn = (...args: any[]): void => {
         queryContext.conditions.add(...handleCondition(QuerySyntaxEnum.In, handleValuesPerCondition, keychain.slice(), args));
+    }
+    
+    const handleUnion = (...args: any[]): void => {
+        queryContext.unions.push(...args.reduce(parseResultsToUnions(true),[]));
+    }
+
+    const handleUnionAll = (...args: any[]): void => {
+        queryContext.unions.push(...args.reduce(parseResultsToUnions(false),[]));
     }
 
     const handles = new Map<QuerySyntaxEnum, Fn>([
@@ -281,11 +301,13 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
         [QuerySyntaxEnum.Join, handleJoin(QuerySyntaxEnum.Join)],
         [QuerySyntaxEnum.FullJoin, handleJoin(QuerySyntaxEnum.FullJoin)],
         [QuerySyntaxEnum.On, handleOn],
+        [QuerySyntaxEnum.Using, handleUsing],
         [QuerySyntaxEnum.OrderBy, handleOrderBy],
         [QuerySyntaxEnum.GroupBy, handleGroupBy],
         [QuerySyntaxEnum.OpenParentheses, handleParentheses(QuerySyntaxEnum.OpenParentheses)],
         [QuerySyntaxEnum.CloseParentheses, handleParentheses(QuerySyntaxEnum.CloseParentheses)],
         [QuerySyntaxEnum.Union, handleUnion],
+        [QuerySyntaxEnum.UnionAll, handleUnionAll],
         [QuerySyntaxEnum.Exists, handleExists],
         [QuerySyntaxEnum.Having, handleKeychain(QuerySyntaxEnum.Having)],
         [QuerySyntaxEnum.In, handleIn]

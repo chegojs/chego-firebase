@@ -1,9 +1,15 @@
-import { QuerySyntaxEnum, IQueryResult, Table, Limit, SortingData, FunctionData, Fn } from '@chego/chego-api';
+import { QuerySyntaxEnum, IQueryResult, Table, Limit, SortingData, FunctionData, Fn, Property } from '@chego/chego-api';
 import { Row, Join } from './firebaseTypes';
 
 export interface IConditions {
     add(...conditions: Fn[]):void;
     test(row:Row):boolean;
+}
+
+export interface IJoinBuilder {
+    withOn(propertyA:Property, propertyB:Property): IJoinBuilder;
+    using(property:Property): IJoinBuilder;
+    build(): Join;
 }
 
 export interface IQueryContextBuilder {
@@ -17,6 +23,7 @@ export interface IQueryContext {
     data:any[];
     tables:Table[];
     joins:Join[];
+    unions:any[];
     limit:Limit;
     orderBy:SortingData[];
     groupBy:SortingData[];

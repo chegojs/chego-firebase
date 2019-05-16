@@ -105,6 +105,11 @@ const like: QuerySyntaxTemplate = (value: any) => (property: Property) => (row: 
         ? conditionTemplate(isLikeString, row, property, value)
         : conditionTemplate(isEq, row, property, value);
 
+const exists: QuerySyntaxTemplate = (value: any) => () => () => {
+    const data = value.getData();
+    return Array.isArray(data) ? data.length : FilterResultEnum.Skipped;
+}
+
 const and: QuerySyntaxTemplate = () => () => () => '&&';
 const or: QuerySyntaxTemplate = () => () => () => '||';
 const not: QuerySyntaxTemplate = () => () => () => '!';
@@ -126,4 +131,5 @@ export const templates: Map<QuerySyntaxEnum, QuerySyntaxTemplate> = new Map<Quer
     [QuerySyntaxEnum.Between, between],
     [QuerySyntaxEnum.Like, like],
     [QuerySyntaxEnum.In, whereIn],
+    [QuerySyntaxEnum.Exists, exists],
 ]);

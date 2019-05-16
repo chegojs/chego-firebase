@@ -22,6 +22,7 @@ export const newQueryContext = ():IQueryContext => ({
     data:[],
     tables:[],
     joins:[],
+    unions:[],
     limit:null,
     orderBy:[],
     groupBy:[],

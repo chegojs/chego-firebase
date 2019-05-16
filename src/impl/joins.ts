@@ -1,9 +1,44 @@
-import { createEmptyObject, combineRows, newRow, isNumeric } from './utils';
+import { createEmptyObject, newRow, isNumeric } from './utils';
 import { getTableContent, parseDataSnapshotToRows } from './pipelines/select';
-import { IQueryContext } from '../api/firebaseInterfaces';
-import { Row, Join, DataMap } from '../api/firebaseTypes';
-import { AnyButFunction, QuerySyntaxEnum, Fn } from '@chego/chego-api';
-import { isRowId, getLabel } from '@chego/chego-tools';
+import { IQueryContext, IJoinBuilder } from '../api/firebaseInterfaces';
+import { Row, Join, DataMap, JoinType } from '../api/firebaseTypes';
+import { AnyButFunction, QuerySyntaxEnum, Fn, Property, Table } from '@chego/chego-api';
+import { isRowId, getLabel, newProperty } from '@chego/chego-tools';
+
+export const newJoin = (type:JoinType, property:Property): Join => ({type, propertyB:property, propertyA:newProperty({})});
+
+export const newJoinBuilder = (type:JoinType, tableA:Table, tableB:Table): IJoinBuilder => {
+    const propA:Property = newProperty({});
+    const propB:Property = newProperty({});
+
+    const builder: IJoinBuilder = {
+        withOn:(first:Property, second:Property) : IJoinBuilder => {
+            Object.assign(propA, first);
+            Object.assign(propB, second);
+            return builder;
+        },
+        using:(property:Property) : IJoinBuilder => {
+            Object.assign(propA, property, { table:tableA });
+            Object.assign(propB, property, { table:tableB });
+            return builder;
+        },
+        build:() => ({type, propertyA:propA, propertyB:propB})
+    }
+    return builder;
+}
+
+const combineRows = (rowA: Row, rowB: Row): Row => {
+    const content: any = Object.assign({}, rowA.content);
+
+    for (const key in rowB.content) {
+        if (content[key]) {
+            content[`${rowB.table.name}.${key}`] = rowB.content[key];
+        } else {
+            content[key] = rowB.content[key];
+        }
+    }
+    return { table: rowA.table, key: rowA.key, content, scheme: Object.keys(content) };
+}
 
 const shouldJoinRows = (rowA:Row, rowB:Row, join:Join):boolean => {
     const a:AnyButFunction = (isRowId(join.propertyA)) ? rowA.key : rowA.content[getLabel(join.propertyA)];
@@ -11,9 +46,9 @@ const shouldJoinRows = (rowA:Row, rowB:Row, join:Join):boolean => {
     return (isNumeric(a) && isNumeric(b)) ? Number(a) === Number(b) : a === b;
 }
 
-const doSideJoin = (primaryRows: Row[], secondaryRows: Row[], join: Join) => {
+const doSideJoin = (rowsA: Row[], rowsB: Row[], join: Join) => {
     const combinedRows: Row[] = [];
-    const initRow: Row = secondaryRows[0];
+    const initRow: Row = rowsB[0];
     const scheme: string[] = Object.keys(initRow.content);
     const emptyRow: Row = newRow({
         table: initRow.table,
@@ -22,9 +57,9 @@ const doSideJoin = (primaryRows: Row[], secondaryRows: Row[], join: Join) => {
         content: createEmptyObject(scheme)
     });
     let rowToAssign: Row;
-    primaryRows.forEach((rowA: Row) => {
+    rowsA.forEach((rowA: Row) => {
         rowToAssign = emptyRow;
-        secondaryRows.forEach((rowB: Row) => {
+        rowsB.forEach((rowB: Row) => {
             if (shouldJoinRows(rowA,rowB,join)) {
                 rowToAssign = rowB;
             }
