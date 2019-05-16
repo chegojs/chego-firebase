@@ -1,5 +1,5 @@
 import { QuerySyntaxEnum, Fn } from '@chego/chego-api';
-import { isLogicalOperatorScope, isProperty } from '@chego/chego-tools';
+import { isLogicalOperatorScope, isProperty, isTable } from '@chego/chego-tools';
 
 const validateWhere = (values: any[]) => {
     if (values.length === 0) {
@@ -21,10 +21,6 @@ const validateSet = (...args: any[]) => {
     if (args.length > 1) {
         throw new Error('Too many arguments');
     }
-    noArgsValidation(...args);
-}
-
-const validateOn = (...args: any[]) => {
     noArgsValidation(...args);
 }
 
@@ -82,9 +78,26 @@ const validateInsert = (...args: any[]) => {
 }
 
 const validateJoin = (...args: any[]): void => {
+    if (!isTable(args[0])) {
+        throw new Error(`given argument is not a Property object`);
+    }
+    noArgsValidation(...args);
+}
+
+const validateUsing = (...args: any[]): void => {
     if (!isProperty(args[0])) {
         throw new Error(`given argument is not a Property object`);
     }
+    noArgsValidation(...args);
+}
+
+const validateOn = (...args: any[]) => {
+    for(const arg of args) {
+        if (!isProperty(arg)) {
+            throw new Error(`given argument is not a Property object`);
+        }
+    }
+    noArgsValidation(...args);
 }
 
 export const validators = new Map<QuerySyntaxEnum, Fn>([
@@ -108,5 +121,6 @@ export const validators = new Map<QuerySyntaxEnum, Fn>([
     [QuerySyntaxEnum.To, validateTo],
     [QuerySyntaxEnum.Update, validateUpdate],
     [QuerySyntaxEnum.In, validateIn],
-    [QuerySyntaxEnum.Insert, validateInsert]
+    [QuerySyntaxEnum.Insert, validateInsert],
+    [QuerySyntaxEnum.Using, validateUsing],
 ]);

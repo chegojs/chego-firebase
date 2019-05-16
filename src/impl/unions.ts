@@ -1,5 +1,5 @@
 import { Union } from './../api/firebaseTypes';
-import { Property, Table } from '@chego/chego-api';
+import { Property, Table, IQueryResult } from '@chego/chego-api';
 import { Row, DataMap, OutputDataSnapshot } from '../api/firebaseTypes';
 import { newRow } from './utils';
 import { getLabel } from '@chego/chego-tools';
@@ -113,3 +113,5 @@ export const applyUnionsIfAny = (queryContext: IQueryContext) => (queryResult: D
     }
     return queryResult;
 }
+
+export const newUnion = (distinct:boolean, data:IQueryResult): Union => ({distinct, data});

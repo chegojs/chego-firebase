@@ -3,8 +3,10 @@ import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, Fn, Table, FunctionDat
 import { IQueryContext, IQueryContextBuilder, IJoinBuilder } from '../api/firebaseInterfaces';
 import { newQueryContext } from './queryContext';
 import { combineReducers, mergePropertiesWithLogicalAnd, isLogicalOperatorScope, isProperty, newLogicalOperatorScope, isMySQLFunction, isAliasString, newTable, isAlias, newSortingData, parseStringToProperty, newLimit } from '@chego/chego-tools';
-import { parseStringToSortingOrderEnum, newJoinBuilder, newUnion } from './utils';
+import { parseStringToSortingOrderEnum } from './utils';
 import { templates } from './templates';
+import { newJoinBuilder } from './joins';
+import { newUnion } from './unions';
 
 const isPrimaryCommand = (type: QuerySyntaxEnum) => type === QuerySyntaxEnum.Select
     || type === QuerySyntaxEnum.Update
@@ -158,14 +160,26 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
     }
 
     const handleJoin = (type: JoinType) => (...args: any[]): void => {
-        tempJoinBuilder = newJoinBuilder(type, args[0])
+        const defualtTable = queryContext.tables[0];
+        if(!defualtTable) {
+            throw new Error(`"defaultTable" is undefined`)
+        }
+        tempJoinBuilder = newJoinBuilder(type, defualtTable, args[0]);
     }
 
     const handleOn = (...args: any[]): void => {
         if (!tempJoinBuilder) {
             throw new Error(`"latestJoin" is undefined`)
         }
-        queryContext.joins.push(tempJoinBuilder.withOn(args[0]).build());
+        queryContext.joins.push(tempJoinBuilder.withOn(args[0], args[1]).build());
+        tempJoinBuilder = null;
+    }
+
+    const handleUsing = (...args: any[]): void => {
+        if (!tempJoinBuilder) {
+            throw new Error(`"latestJoin" is undefined`)
+        }
+        queryContext.joins.push(tempJoinBuilder.using(args[0]).build());
         tempJoinBuilder = null;
     }
 
@@ -287,6 +301,7 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
         [QuerySyntaxEnum.Join, handleJoin(QuerySyntaxEnum.Join)],
         [QuerySyntaxEnum.FullJoin, handleJoin(QuerySyntaxEnum.FullJoin)],
         [QuerySyntaxEnum.On, handleOn],
+        [QuerySyntaxEnum.Using, handleUsing],
         [QuerySyntaxEnum.OrderBy, handleOrderBy],
         [QuerySyntaxEnum.GroupBy, handleGroupBy],
         [QuerySyntaxEnum.OpenParentheses, handleParentheses(QuerySyntaxEnum.OpenParentheses)],

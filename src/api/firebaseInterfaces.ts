@@ -7,7 +7,8 @@ export interface IConditions {
 }
 
 export interface IJoinBuilder {
-    withOn(property:Property): IJoinBuilder;
+    withOn(propertyA:Property, propertyB:Property): IJoinBuilder;
+    using(property:Property): IJoinBuilder;
     build(): Join;
 }
 
