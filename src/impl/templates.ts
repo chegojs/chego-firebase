@@ -23,6 +23,15 @@ const parseValue = (value: AnyButFunction): AnyButFunction => {
     return value;
 }
 
+const isIn = (a: AnyButFunction, ...values: AnyButFunction[]): boolean => { 
+    const expression = parseValue(a);
+     for(const value of values) {
+         if(expression === parseValue(value)) {
+             return true;
+         }
+     }
+     return false;
+};
 const isEq = (a: AnyButFunction, b: AnyButFunction): boolean =>
     typeof a === 'object' && typeof b === 'object'
         ? JSON.stringify(a) === JSON.stringify(b)
@@ -74,6 +83,9 @@ const conditionTemplate = (condition: (...args: AnyButFunction[]) => boolean, ro
             : Number(runCondition(condition, row.content[property.name], ...values))
         : FilterResultEnum.Skipped;
 
+const whereIn: QuerySyntaxTemplate = (...values: any[]) => (property: Property) => (row: Row) =>
+        conditionTemplate(isIn, row, property, ...values);
+
 const eq: QuerySyntaxTemplate = (value: any) => (property: Property) => (row: Row) =>
     conditionTemplate(isEq, row, property, value);
 
@@ -113,4 +125,5 @@ export const templates: Map<QuerySyntaxEnum, QuerySyntaxTemplate> = new Map<Quer
     [QuerySyntaxEnum.CloseParentheses, closeParentheses],
     [QuerySyntaxEnum.Between, between],
     [QuerySyntaxEnum.Like, like],
+    [QuerySyntaxEnum.In, whereIn],
 ]);
