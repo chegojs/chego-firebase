@@ -1,9 +1,9 @@
-import { JoinType } from './../api/firebaseTypes';
-import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, Fn, Table, FunctionData, Property, AnyButFunction, SortingData, QuerySyntaxTemplate } from '@chego/chego-api';
-import { IQueryContext, IQueryContextBuilder } from '../api/firebaseInterfaces';
+import { JoinType, Union } from './../api/firebaseTypes';
+import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, Fn, Table, FunctionData, Property, AnyButFunction, SortingData, QuerySyntaxTemplate, IQueryResult } from '@chego/chego-api';
+import { IQueryContext, IQueryContextBuilder, IJoinBuilder } from '../api/firebaseInterfaces';
 import { newQueryContext } from './queryContext';
 import { combineReducers, mergePropertiesWithLogicalAnd, isLogicalOperatorScope, isProperty, newLogicalOperatorScope, isMySQLFunction, isAliasString, newTable, isAlias, newSortingData, parseStringToProperty, newLimit } from '@chego/chego-tools';
-import { parseStringToSortingOrderEnum, newJoinBuilder } from './utils';
+import { parseStringToSortingOrderEnum, newJoinBuilder, newUnion } from './utils';
 import { templates } from './templates';
 
 const isPrimaryCommand = (type: QuerySyntaxEnum) => type === QuerySyntaxEnum.Select
@@ -114,9 +114,11 @@ const handleCondition = (type: QuerySyntaxEnum, reducer: Fn, keychain?: Property
         : functions;
 }
 
+const parseResultsToUnions = (distinct:boolean) => (list:Union[], data:IQueryResult) => (list.push(newUnion(distinct, data)),list);
+
 export const newQueryContextBuilder = (): IQueryContextBuilder => {
     let keychain: PropertyOrLogicalOperatorScope[] = [];
-    let tempJoinBuilder: any;
+    let tempJoinBuilder: IJoinBuilder;
     const queryContext: IQueryContext = newQueryContext();
     const history: QuerySyntaxEnum[] = [];
 
@@ -254,7 +256,11 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
     }
     
     const handleUnion = (...args: any[]): void => {
-        // TODO
+        queryContext.unions.push(...args.reduce(parseResultsToUnions(true),[]));
+    }
+
+    const handleUnionAll = (...args: any[]): void => {
+        queryContext.unions.push(...args.reduce(parseResultsToUnions(false),[]));
     }
 
     const handles = new Map<QuerySyntaxEnum, Fn>([
@@ -286,6 +292,7 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
         [QuerySyntaxEnum.OpenParentheses, handleParentheses(QuerySyntaxEnum.OpenParentheses)],
         [QuerySyntaxEnum.CloseParentheses, handleParentheses(QuerySyntaxEnum.CloseParentheses)],
         [QuerySyntaxEnum.Union, handleUnion],
+        [QuerySyntaxEnum.UnionAll, handleUnionAll],
         [QuerySyntaxEnum.Exists, handleExists],
         [QuerySyntaxEnum.Having, handleKeychain(QuerySyntaxEnum.Having)],
         [QuerySyntaxEnum.In, handleIn]

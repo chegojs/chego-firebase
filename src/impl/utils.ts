@@ -1,6 +1,7 @@
-import { DataMap, Row, JoinType, Join } from '../api/firebaseTypes';
+import { DataMap, Row, JoinType, Join, Union } from '../api/firebaseTypes';
 import { Property, SortingOrderEnum, IQueryResult } from '@chego/chego-api';
 import { newProperty } from '@chego/chego-tools';
+import { IJoinBuilder } from '../api/firebaseInterfaces';
 
 
 export const createEmptyObject = (keys: string[]) => keys.reduce((acc: any, c: string) => { acc[c] = null; return acc; }, {});
@@ -12,13 +13,15 @@ export const newRow = ({ table = null, key = '', scheme = [], content = {} }: Ro
 });
 
 export const newJoin = (type:JoinType, property:Property): Join => ({type, propertyB:property, propertyA:newProperty({})});
+export const newUnion = (distinct:boolean, data:IQueryResult): Union => ({distinct, data});
 
-export const newJoinBuilder = (type:JoinType, property:Property) => {
+export const newJoinBuilder = (type:JoinType, property:Property): IJoinBuilder => {
     let propertyA:Property;
 
-    const builder = {
-        withOn:(property:Property) => {
+    const builder: IJoinBuilder = {
+        withOn:(property:Property) : IJoinBuilder => {
             propertyA = property;
+            return builder;
         },
         build:() => ({type, propertyB:property, propertyA})
     }

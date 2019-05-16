@@ -9,6 +9,7 @@ import { Row, DataMap } from '../../api/firebaseTypes';
 import { newDataMap, newRow } from '../utils';
 import * as firebase from 'Firebase';
 import { Limit, Property, Table, QuerySyntaxEnum } from '@chego/chego-api';
+import { applyUnionsIfAny, storeOnlyUniqueEntriesIfRequired } from '../unions';
 
 export const parseRowsToArray = (result: any[], row: Row): any[] => (result.push(Object.assign({}, row.content)), result);
 export const parseRowsToObject = (result: any, row: Row): any => (Object.assign(result, { [row.key]: row.content }), result);
@@ -86,12 +87,14 @@ export const spliceQueryResultsIfRequired = (limit: Limit) => (data: any): any =
                 ? [limit.offsetOrCount]
                 : [0, limit.offsetOrCount];
 
-        for(const table of Object.keys(data)) {
+        for (const table of Object.keys(data)) {
             data[table] = data[table].slice(...range)
         }
     }
     return data;
 }
+
+
 
 export const getTableContent = async (ref: firebase.database.Reference, table: Table, limit?: Limit): Promise<any> =>
     new Promise(resolve =>
@@ -101,6 +104,8 @@ export const getTableContent = async (ref: firebase.database.Reference, table: T
 export const runSelectPipeline = async (ref: firebase.database.Reference, queryContext: IQueryContext): Promise<any> =>
     new Promise((resolve, reject) => executeQuery(ref, queryContext)
         .then(joinTablesIfRequired(ref, queryContext))
+        .then(storeOnlyUniqueEntriesIfRequired(queryContext))
+        .then(applyUnionsIfAny(queryContext))
         .then(filterQueryResultsIfRequired(queryContext))
         .then(applyMySQLFunctionsIfAny(queryContext))
         .then(convertMapToOutputData)
