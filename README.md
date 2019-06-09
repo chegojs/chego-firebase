@@ -22,7 +22,7 @@ const chego = newChego(chegoFirebase, {
     messagingSenderId: "3252523423"
 });
 
-chego.connect();
+await chego.connect();
 const query = newQuery();
 
 query.select('*').from('superheroes').where('origin').is.eq('Gotham City').limit(10);

@@ -1,7 +1,5 @@
-import { basicSort } from './utils';
-import { IQueryContext } from '../api/firebaseInterfaces';
-import { OutputDataSnapshot } from '../api/firebaseTypes';
 import { SortingData, AnyButFunction } from '@chego/chego-api';
+import { basicSort, IQueryContext, OutputDataSnapshot } from '@chego/chego-database-boilerplate';
 
 const compareUsing = (sorters: SortingData[]) => (a: any, b: any): number => {
     const sortBy: SortingData = sorters[0];

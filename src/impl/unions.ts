@@ -1,9 +1,6 @@
-import { Union } from './../api/firebaseTypes';
-import { Property, Table, IQueryResult } from '@chego/chego-api';
-import { Row, DataMap, OutputDataSnapshot } from '../api/firebaseTypes';
-import { newRow } from './utils';
+import { Property, Table } from '@chego/chego-api';
 import { getLabel } from '@chego/chego-tools';
-import { IQueryContext } from '../api/firebaseInterfaces';
+import { IQueryContext, Row, newRow, DataMap, Union, OutputDataSnapshot } from '@chego/chego-database-boilerplate';
 
 const replaceScheme = (scheme: string[], table: Table) => (list: any[], row: any): Row[] => {
     const rowScheme: string[] = Object.keys(row)
@@ -113,5 +110,3 @@ export const applyUnionsIfAny = (queryContext: IQueryContext) => (queryResult: D
     }
     return queryResult;
 }
-
-export const newUnion = (distinct:boolean, data:IQueryResult): Union => ({distinct, data});

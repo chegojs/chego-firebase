@@ -1,15 +1,13 @@
-import { OutputDataSnapshot, InputDataSnapshot } from '../../api/firebaseTypes';
 import { joinTablesIfRequired } from '../joins';
 import { orderResultsIfRequired } from '../orderBy';
 import { applyMySQLFunctionsIfAny } from '../mySQLFunctions';
 import { groupResultsIfRequired } from '../groupBy';
 import { templates } from '../templates';
-import { IQueryContext } from '../../api/firebaseInterfaces';
-import { Row, DataMap } from '../../api/firebaseTypes';
-import { newDataMap, newRow } from '../utils';
 import * as firebase from 'Firebase';
 import { Limit, Property, Table, QuerySyntaxEnum } from '@chego/chego-api';
 import { applyUnionsIfAny, storeOnlyUniqueEntriesIfRequired } from '../unions';
+import { newRow, IQueryContext, newDataMap, Row, DataMap, InputDataSnapshot, OutputDataSnapshot } from '@chego/chego-database-boilerplate';
+import { newConditions } from '../conditions';
 
 export const parseRowsToArray = (result: any[], row: Row): any[] => (result.push(Object.assign({}, row.content)), result);
 export const parseRowsToObject = (result: any, row: Row): any => (Object.assign(result, { [row.key]: row.content }), result);
@@ -48,12 +46,12 @@ export const filterQueryResultsIfRequired = (queryContext: IQueryContext) => (qu
     const parsedResult: DataMap = newDataMap();
     const select = templates.get(QuerySyntaxEnum.Select);
     let tableRows: Row[];
-
+    const conditions = newConditions(queryContext.conditions);
     queryResult.forEach((rows: Row[], tableName: string) => {
-        tableRows = rows.filter((row: Row, index: number) => {
-            if (queryContext.conditions.test(row)) {
+        tableRows = rows.filter((row: Row) => {
+            if (conditions.test(row)) {
                 if (shouldFilterRowContent(queryContext.data) && queryContext.type === QuerySyntaxEnum.Select) {
-                    row.content = queryContext.data.reduce((content: any, property: Property) => select(property)(content)(row), {});
+                    row.content = queryContext.data.reduce((content: any, property: Property) => select(property, content, row), {});
                 }
                 return true;
             }

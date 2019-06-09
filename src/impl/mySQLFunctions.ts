@@ -1,6 +1,5 @@
-import { Row, DataMap } from '../api/firebaseTypes';
-import { IQueryContext } from '../api/firebaseInterfaces';
 import { FunctionData, Property, QuerySyntaxEnum, Fn } from '@chego/chego-api';
+import { IQueryContext, Row, DataMap } from '@chego/chego-database-boilerplate';
 
 const parseMin = (rows: Row[], fnData: FunctionData): Row[] => {
     const keyName: string = fnData.properties[0].name;
@@ -162,7 +161,7 @@ const parseCoalesce = (rows: Row[], fnData: FunctionData): Row[] => {
     }, []);
 }
 
-const mysqlFunctions: Map<QuerySyntaxEnum, Fn> = new Map<QuerySyntaxEnum, Fn>([
+const mysqlFunctions: Map<QuerySyntaxEnum, Fn<Row[]>> = new Map<QuerySyntaxEnum, Fn<Row[]>>([
     [QuerySyntaxEnum.Min, parseMin],
     [QuerySyntaxEnum.Max, parseMax],
     [QuerySyntaxEnum.Sum, parseSum],
@@ -177,7 +176,7 @@ const mysqlFunctions: Map<QuerySyntaxEnum, Fn> = new Map<QuerySyntaxEnum, Fn>([
 const applyMySQLFunctions = (functions: FunctionData[], tableName?: string) => (rows: Row[], key: string, map: DataMap): void => {
     let parsedRows: Row[] = [];
     functions.forEach((fnData: FunctionData) => {
-        const mySQLFn: Fn = mysqlFunctions.get(fnData.type);
+        const mySQLFn: Fn<Row[]> = mysqlFunctions.get(fnData.type);
         if (mySQLFn && fnData.properties[0].table.name === (tableName ? tableName : key)) {
             parsedRows = [...parsedRows, ...mySQLFn(rows, fnData)];
         }

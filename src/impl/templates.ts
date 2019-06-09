@@ -1,8 +1,6 @@
-
-import { Row } from '../api/firebaseTypes';
-import { isQueryResult } from './utils';
-import { AnyButFunction, Obj, QuerySyntaxTemplate, Property, FilterResultEnum, QuerySyntaxEnum } from '@chego/chego-api';
+import { AnyButFunction, Obj, Property, FilterResultEnum, QuerySyntaxEnum, Fn } from '@chego/chego-api';
 import { isAlias, isRowId } from '@chego/chego-tools';
+import { isQueryResult, Row } from '@chego/chego-database-boilerplate';
 
 
 export const getQueryResultValues = (data: AnyButFunction): AnyButFunction[] => {
@@ -58,7 +56,7 @@ const runCondition = (condition: (...args: AnyButFunction[]) => boolean, ...valu
     return condition(...data);
 }
 
-const select: QuerySyntaxTemplate = (property: Property) => (content: any) => (row: Row) => {
+const select: Fn<any> = (property: Property, content: any, row: Row) => {
     if (row.table.name === property.table.name) {
         if (isAlias(property)) {
             content[property.alias] = row.content[property.name];
@@ -83,41 +81,41 @@ const conditionTemplate = (condition: (...args: AnyButFunction[]) => boolean, ro
             : Number(runCondition(condition, row.content[property.name], ...values))
         : FilterResultEnum.Skipped;
 
-const whereIn: QuerySyntaxTemplate = (...values: any[]) => (property: Property) => (row: Row) =>
+const whereIn: Fn<Fn<number>> = (property: Property, ...values: any[]) => (row: Row) =>
         conditionTemplate(isIn, row, property, ...values);
 
-const eq: QuerySyntaxTemplate = (value: any) => (property: Property) => (row: Row) =>
+const eq: Fn<Fn<number>> = (property: Property, value: any) => (row: Row) =>
     conditionTemplate(isEq, row, property, value);
 
-const isNull: QuerySyntaxTemplate = () => (property: Property) => eq(null)(property);
+const isNull: Fn<Fn<number>> = (property: Property) => eq(property, null);
 
-const gt: QuerySyntaxTemplate = (value: number | string) => (property: Property) => (row: Row) =>
+const gt: Fn<Fn<number>> = (property: Property, value: number | string) => (row: Row) =>
     conditionTemplate(isGt, row, property, value);
 
-const lt: QuerySyntaxTemplate = (value: number | string) => (property: Property) => (row: Row) =>
+const lt: Fn<Fn<number>> = (property: Property, value: number | string) => (row: Row) =>
     conditionTemplate(isLt, row, property, value);
 
-const between: QuerySyntaxTemplate = (min: number, max: number) => (property: Property) => (row: Row) =>
+const between: Fn<Fn<number>> = (property: Property, min: number, max: number) => (row: Row) =>
     conditionTemplate(isBetween, row, property, min, max);
 
-const like: QuerySyntaxTemplate = (value: any) => (property: Property) => (row: Row) =>
+const like: Fn<Fn<number>> = (property: Property, value: any) => (row: Row) =>
     typeof value === 'string'
         ? conditionTemplate(isLikeString, row, property, value)
         : conditionTemplate(isEq, row, property, value);
 
-const exists: QuerySyntaxTemplate = (value: any) => () => () => {
+const exists: Fn<Fn<number>> = (property:Property, value: any) => () => {
     const data = value.getData();
     return Array.isArray(data) ? data.length : FilterResultEnum.Skipped;
 }
 
-const and: QuerySyntaxTemplate = () => () => () => '&&';
-const or: QuerySyntaxTemplate = () => () => () => '||';
-const not: QuerySyntaxTemplate = () => () => () => '!';
+const and: Fn<string> = () => '&&';
+const or: Fn<string> = () => '||';
+const not: Fn<string> = () => '!';
 
-const openParentheses: QuerySyntaxTemplate = () => () => () => '(';
-const closeParentheses: QuerySyntaxTemplate = () => () => () => ')';
+const openParentheses: Fn<string> = () => '(';
+const closeParentheses: Fn<string> = () => ')';
 
-export const templates: Map<QuerySyntaxEnum, QuerySyntaxTemplate> = new Map<QuerySyntaxEnum, QuerySyntaxTemplate>([
+export const templates: Map<QuerySyntaxEnum, Fn<Fn<number>|string>> = new Map<QuerySyntaxEnum, Fn<Fn<number>|string>>([
     [QuerySyntaxEnum.Select, select],
     [QuerySyntaxEnum.EQ, eq],
     [QuerySyntaxEnum.Null, isNull],
