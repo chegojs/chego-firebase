@@ -1,7 +1,6 @@
 import * as firebase from 'Firebase';
 import { filterQueryResultsIfRequired, executeQuery, convertMapToInputData } from "./select";
-import { IQueryContext } from "../../api/firebaseInterfaces";
-import { Row, DataMap } from '../../api/firebaseTypes';
+import { DataMap, IQueryContext, Row } from '@chego/chego-database-boilerplate';
 
 const withErrorMessage = (errors:Map<string,Error>):string => {
             const message:string[] = [];

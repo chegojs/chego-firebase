@@ -1,31 +1,7 @@
-import { createEmptyObject, newRow, isNumeric } from './utils';
 import { getTableContent, parseDataSnapshotToRows } from './pipelines/select';
-import { IQueryContext, IJoinBuilder } from '../api/firebaseInterfaces';
-import { Row, Join, DataMap, JoinType } from '../api/firebaseTypes';
-import { AnyButFunction, QuerySyntaxEnum, Fn, Property, Table } from '@chego/chego-api';
-import { isRowId, getLabel, newProperty } from '@chego/chego-tools';
-
-export const newJoin = (type:JoinType, property:Property): Join => ({type, propertyB:property, propertyA:newProperty({})});
-
-export const newJoinBuilder = (type:JoinType, tableA:Table, tableB:Table): IJoinBuilder => {
-    const propA:Property = newProperty({});
-    const propB:Property = newProperty({});
-
-    const builder: IJoinBuilder = {
-        withOn:(first:Property, second:Property) : IJoinBuilder => {
-            Object.assign(propA, first);
-            Object.assign(propB, second);
-            return builder;
-        },
-        using:(property:Property) : IJoinBuilder => {
-            Object.assign(propA, property, { table:tableA });
-            Object.assign(propB, property, { table:tableB });
-            return builder;
-        },
-        build:() => ({type, propertyA:propA, propertyB:propB})
-    }
-    return builder;
-}
+import { AnyButFunction, QuerySyntaxEnum, Fn } from '@chego/chego-api';
+import { isRowId, getLabel } from '@chego/chego-tools';
+import { Join, IQueryContext, isNumeric, newRow, createEmptyObject, Row, DataMap } from '@chego/chego-database-boilerplate';
 
 const combineRows = (rowA: Row, rowB: Row): Row => {
     const content: any = Object.assign({}, rowA.content);
@@ -92,7 +68,7 @@ const doFullJoin = (rowsA: Row[], rowsB: Row[], join: Join): Row[] => {
     return [...leftJoin, ...rightJoin];
 }
 
-const joinFunctions: Map<QuerySyntaxEnum, Fn> = new Map<QuerySyntaxEnum, Fn>([
+const joinFunctions: Map<QuerySyntaxEnum, Fn<Row[]>> = new Map<QuerySyntaxEnum, Fn<Row[]>>([
     [QuerySyntaxEnum.Join, doJoin],
     [QuerySyntaxEnum.FullJoin, doFullJoin],
     [QuerySyntaxEnum.LeftJoin, doLeftJoin],
@@ -102,7 +78,7 @@ const joinFunctions: Map<QuerySyntaxEnum, Fn> = new Map<QuerySyntaxEnum, Fn>([
 const mergeTableB2TableA = (join: Join, results: DataMap) => (tableBContent: any) => {
     const rowsA: Row[] = results.get(join.propertyA.table.name);
     const rowsB: Row[] = parseDataSnapshotToRows(join.propertyB.table, tableBContent);
-    const joinFn: Fn = joinFunctions.get(join.type);
+    const joinFn: Fn<Row[]> = joinFunctions.get(join.type);
     const combinedRows: Row[] = joinFn ? joinFn(rowsA, rowsB, join) : [];
     results.set(join.propertyA.table.name, combinedRows);
     return results;

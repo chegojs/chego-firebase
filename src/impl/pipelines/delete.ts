@@ -1,9 +1,8 @@
-import { Row, DataMap } from '../../api/firebaseTypes';
-import { IQueryContext } from "../../api/firebaseInterfaces";
 import * as firebase from 'Firebase';
 import { executeQuery, filterQueryResultsIfRequired, convertMapToInputData } from './select';
 import { sendUpdatedContent } from './update';
 import { Property } from '@chego/chego-api';
+import { Row, DataMap, IQueryContext } from '@chego/chego-database-boilerplate';
 
 const nullifyRows = (rows: Row[], row: Row): Row[] => [...rows, Object.assign(row, { content: null })];
 

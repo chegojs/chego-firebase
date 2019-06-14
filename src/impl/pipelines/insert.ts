@@ -1,5 +1,5 @@
-import { IQueryContext } from "../../api/firebaseInterfaces";
 import * as firebase from 'Firebase';
+import { IQueryContext } from '@chego/chego-database-boilerplate';
 
 const withErrorMessage = (errors: Map<string, Error>): string => {
     const message: string[] = [];
