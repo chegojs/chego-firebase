@@ -2,9 +2,10 @@ import { runSelectPipeline } from "./select";
 import { runUpdatePipeline } from "./update";
 import { runDeletePipeline } from "./delete";
 import { runInsertPipeline } from "./insert";
-import { QuerySyntaxEnum, Fn } from '@chego/chego-api';
+import { QuerySyntaxEnum } from '@chego/chego-api';
+import { QueryPipeline } from '@chego/chego-database-boilerplate';
 
-export const pipelines: Map<QuerySyntaxEnum, Fn<Promise<any>>> = new Map<QuerySyntaxEnum, Fn<Promise<any>>>([
+export const pipelines: Map<QuerySyntaxEnum, QueryPipeline> = new Map<QuerySyntaxEnum, QueryPipeline>([
     [QuerySyntaxEnum.Select, runSelectPipeline],
     [QuerySyntaxEnum.Update, runUpdatePipeline],
     [QuerySyntaxEnum.Delete, runDeletePipeline],

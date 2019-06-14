@@ -46,7 +46,7 @@ export const filterQueryResultsIfRequired = (queryContext: IQueryContext) => (qu
     const parsedResult: DataMap = newDataMap();
     const select = templates.get(QuerySyntaxEnum.Select);
     let tableRows: Row[];
-    const conditions = newConditions(queryContext.conditions);
+    const conditions = newConditions(queryContext.expressions);
     queryResult.forEach((rows: Row[], tableName: string) => {
         tableRows = rows.filter((row: Row) => {
             if (conditions.test(row)) {
@@ -99,6 +99,37 @@ export const getTableContent = async (ref: firebase.database.Reference, table: T
         ref.child(table.name).once('value', (snapshot: firebase.database.DataSnapshot) => resolve(snapshot.val()))
     );
 
+export const onlyTemporaryProperties = (tempProps: Map<string, Property[]>, current: Property) => {
+    if (current.temporary) {
+        if (tempProps.has(current.table.name)) {
+            tempProps.get(current.table.name).push(current);
+        } else {
+            tempProps.set(current.table.name, [current]);
+        }
+    }
+    return tempProps;
+}
+
+export const removeTemporaryProperties = (tempPropertiesMap: Map<string, Property[]>) => (rows: Row[], table: string, map: DataMap): void => {
+    const tempProps: Property[] = tempPropertiesMap.get(table);
+    if (tempProps) {
+        for (const prop of tempProps) {
+            for (const row of rows) {
+                delete row.content[prop.name];
+            }
+        }
+    }
+}
+
+export const removeTemporaryPropertiesIfAny = (queryContext: IQueryContext) => (data: DataMap): DataMap => {
+    if (queryContext.data.length) {
+        const tempProperties: Map<string, Property[]> = new Map<string, Property[]>();
+        queryContext.data.reduce(onlyTemporaryProperties, tempProperties);
+        data.forEach(removeTemporaryProperties(tempProperties));
+    }
+    return data;
+}
+
 export const runSelectPipeline = async (ref: firebase.database.Reference, queryContext: IQueryContext): Promise<any> =>
     new Promise((resolve, reject) => executeQuery(ref, queryContext)
         .then(joinTablesIfRequired(ref, queryContext))
@@ -106,6 +137,7 @@ export const runSelectPipeline = async (ref: firebase.database.Reference, queryC
         .then(applyUnionsIfAny(queryContext))
         .then(filterQueryResultsIfRequired(queryContext))
         .then(applyMySQLFunctionsIfAny(queryContext))
+        .then(removeTemporaryPropertiesIfAny(queryContext))
         .then(convertMapToOutputData)
         .then(groupResultsIfRequired(queryContext))
         .then(orderResultsIfRequired(queryContext))

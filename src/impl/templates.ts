@@ -2,7 +2,6 @@ import { AnyButFunction, Obj, Property, FilterResultEnum, QuerySyntaxEnum, Fn } 
 import { isAlias, isRowId } from '@chego/chego-tools';
 import { isQueryResult, Row } from '@chego/chego-database-boilerplate';
 
-
 export const getQueryResultValues = (data: AnyButFunction): AnyButFunction[] => {
     const results: AnyButFunction[] = [];
     Object.values(data).forEach((table: Obj) =>

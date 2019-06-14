@@ -46,7 +46,6 @@
   "dependencies": {
     "@chego/chego-api": "2.0.0",
     "@chego/chego-tools": "2.0.0",
-    "@chego/chego-database-boilerplate": "1.0.0",
     "firebase": "^5.9.2"
   }
 }
