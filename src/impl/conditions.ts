@@ -1,67 +1,67 @@
-import { Fn, FilterResultEnum, ExpressionOrExpressionScope, QuerySyntaxEnum } from '@chego/chego-api';
-import { FormulaRegEx, Row } from '@chego/chego-database-boilerplate';
-import { IConditions } from '../api/firebaseInterfaces';
-import { isExpressionScope, isFunction } from '@chego/chego-tools';
+import { Fn, FilterResultEnum, QuerySyntaxEnum } from '@chego/chego-api';
+import { Row, Expressions, isExpressionScope } from '@chego/chego-database-boilerplate';
+import { IConditions, Condition } from '../api/api';
 import { templates } from './templates';
 
-
-const removeRoundBracketsIfJustNumber: FormulaRegEx = { pattern: /\(([0-1])\)/g, replacer: "$1" };
-const removeOperatorIfFirst: FormulaRegEx = { pattern: /(\&{2}|\|{2})+(\)|$)/g, replacer: "$2" };
-const removeOperatorIfLast: FormulaRegEx = { pattern: /(\(|^)+(\&{2}|\|{2})/g, replacer: "$1" };
-const removeBlankRoundBrackets: FormulaRegEx = { pattern: /\(\)/g, replacer: "" };
-const formulaExpressions = [removeRoundBracketsIfJustNumber, removeOperatorIfFirst, removeOperatorIfLast, removeBlankRoundBrackets];
-
-const replaceWithExpression = (result: string, regex: FormulaRegEx) => result.replace(regex.pattern, regex.replacer);
-const matchExpression = (formula: string) => (result: boolean, regex: FormulaRegEx) => formula.match(regex.pattern) ? true : result;
-const cleanFormula = (formula: string): string => {
-    const cleanedFormula: string = formulaExpressions.reduce(replaceWithExpression, formula);
-    return formulaExpressions.reduce(matchExpression(cleanedFormula), false) ? cleanFormula(cleanedFormula) : cleanedFormula;
-}
-
-const testConditions = (row: Row) => (results: any[], condition: Fn<number> | string) => {
-    if (isFunction(condition)) {
-        const conditionResult:number = (<Fn<number>>condition)(row);
+const buildFormula = (row: Row) => (results: Array<string|number>, condition: Condition) => {
+    if(Array.isArray(condition)) {
+        results.push('(',...condition.reduce(buildFormula(row),[]),')');
+    } else {
+        const conditionResult:number|string = condition(row);
         if (conditionResult !== FilterResultEnum.Skipped) {
             results.push(conditionResult);
         }
-    } else {
-        results.push(condition);
     }
     return results;
 }
 
-const injectOperators = (template: string) => (list: Array<Fn<any>|string>, current: Fn<any>, i: number) => {
-    if (Number.isInteger(i % 2)) {
-        list.push(template);
+const injectOperator = (operatorTemplate:Fn<string>):Fn<any[]> => (list:Condition[], data: Condition[], i:number):Condition[] => {
+    if(i > 0) {
+        list.push(operatorTemplate)
     }
-    list.push(current);
+    list.push(data);
     return list;
 }
 
-const parseExpressionsToFunctions = (list: any[], current: ExpressionOrExpressionScope) => {
-    const template = templates.get(current.type);
-    if (isExpressionScope(current)) {
-        const temp:string= <string>templates.get(current.type)();
-        const conditions: any[] = current.expressions.reduce(parseExpressionsToFunctions, []).reduce(injectOperators(temp), []);
-        list.push(
-            templates.get(QuerySyntaxEnum.OpenParentheses)(),
-            ...conditions,
-            templates.get(QuerySyntaxEnum.CloseParentheses)()
-        );
+const parseExpressionsToFunctions = (list:Condition[], data: Expressions):Condition[] => {
+    if(Array.isArray(data)) {
+        const conditions: Condition[] = data.reduce(parseExpressionsToFunctions,[]);
+        list.push(conditions);
+    } else if (isExpressionScope(data)) {
+        const operatorTemplate:Fn<string> = <Fn<string>>templates.get(data.type)();
+        const conditions:Condition[] = 
+            data.expressions
+            .reduce(parseExpressionsToFunctions, [])
+            .reduce(injectOperator(operatorTemplate),[]);
+        list.push(conditions);
     } else {
-        if (current.not) {
+        const template = templates.get(data.type);
+        if (data.not) {
             list.push(templates.get(QuerySyntaxEnum.Not)());
         }
-        list.push(template(current.property, current.value));
+        list.push(template(data.property, data.value));
     }
     return list;
 }
 
-export const newConditions = (data: ExpressionOrExpressionScope[]): IConditions => {
-    const conditions: any[] = data.reduce(parseExpressionsToFunctions, []);
+const dropSquareBrackets = (formulaParts:Condition[], current:any):Condition[] => {
+    if(Array.isArray(current)) {
+        if(current.length > 1) {
+            formulaParts.push(...current.reduce(dropSquareBrackets,[]));
+        } else {
+            formulaParts.push(current[0]);
+        }
+    } else {
+        formulaParts.push(current);
+    }
+    return formulaParts;
+}
+
+export const newConditions = (expressions: Expressions[]): IConditions => {
+    const conditions: Condition[] = expressions.reduce(parseExpressionsToFunctions,[]).reduce(dropSquareBrackets,<any>[]);
     return {
         test(row: Row): boolean {
-            const formula: string = cleanFormula(conditions.reduce(testConditions(row), []).join(''));
+            const formula: string = conditions.reduce(buildFormula(row), []).join('');
             const isValidOperation: boolean = /^.*[0-1].*$/.test(formula);
             const meetsConditions: boolean = isValidOperation ? Boolean(new Function(`return ${formula}`)()) : true;
             return meetsConditions;

@@ -107,14 +107,14 @@ const exists: Fn<Fn<number>> = (property:Property, value: any) => () => {
     return Array.isArray(data) ? data.length : FilterResultEnum.Skipped;
 }
 
-const and: Fn<string> = () => '&&';
-const or: Fn<string> = () => '||';
-const not: Fn<string> = () => '!';
+const and: Fn<Fn<string>> = () => () => '&&';
+const or: Fn<Fn<string>> = () => () => '||';
+const not: Fn<Fn<string>> = () => () => '!';
 
-const openParentheses: Fn<string> = () => '(';
-const closeParentheses: Fn<string> = () => ')';
+const openParentheses: Fn<Fn<string>> = () => () => '(';
+const closeParentheses: Fn<Fn<string>> = () => () => ')';
 
-export const templates: Map<QuerySyntaxEnum, Fn<Fn<number>|string>> = new Map<QuerySyntaxEnum, Fn<Fn<number>|string>>([
+export const templates: Map<QuerySyntaxEnum, Fn<Fn<number>> | Fn<Fn<string>>> = new Map<QuerySyntaxEnum, Fn<Fn<number>> | Fn<Fn<string>>>([
     [QuerySyntaxEnum.Select, select],
     [QuerySyntaxEnum.EQ, eq],
     [QuerySyntaxEnum.Null, isNull],
