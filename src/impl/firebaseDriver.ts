@@ -15,6 +15,7 @@ export const chegoFirebase = (): IDatabaseDriver => {
             if (!initialized) {
                 throw new Error('Driver not initialized');
             }
+            
             const ref: firebase.database.Reference = firebase.app().database().ref();
             return newExecutor()
                 .withDBRef(ref)
