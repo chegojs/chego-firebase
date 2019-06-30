@@ -13,7 +13,7 @@ export const runInsertPipeline = async (ref: firebase.database.Reference, queryC
     const errors: Map<string, Error> = new Map<string, Error>();
     for (const table of queryContext.tables) {
         for (const entry of queryContext.data) {
-            await ref.push(entry, (error: Error) => {
+            await ref.child(table.name).push(entry, (error: Error) => {
                 if (error) {
                     errors.set(table.name, error);
                 }
