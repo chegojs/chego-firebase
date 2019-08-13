@@ -1,5 +1,5 @@
-import { AnyButFunction, Obj, Property, FilterResultEnum, QuerySyntaxEnum, Fn } from '@chego/chego-api';
-import { isAlias, isRowId } from '@chego/chego-tools';
+import { AnyButFunction, Obj, Property, FilterResultEnum, QuerySyntaxEnum, Fn, CustomCondition, Between } from '@chego/chego-api';
+import { isAlias, isRowId, isCustomCondition } from '@chego/chego-tools';
 import { isQueryResult, Row } from '@chego/chego-database-boilerplate';
 
 export const getQueryResultValues = (data: AnyButFunction): AnyButFunction[] => {
@@ -20,14 +20,14 @@ const parseValue = (value: AnyButFunction): AnyButFunction => {
     return value;
 }
 
-const isIn = (a: AnyButFunction, ...values: AnyButFunction[]): boolean => { 
+const isIn = (a: AnyButFunction, ...values: AnyButFunction[]): boolean => {
     const expression = parseValue(a);
-     for(const value of values) {
-         if(expression === parseValue(value)) {
-             return true;
-         }
-     }
-     return false;
+    for (const value of values) {
+        if (expression === parseValue(value)) {
+            return true;
+        }
+    }
+    return false;
 };
 const isEq = (a: AnyButFunction, b: AnyButFunction): boolean =>
     typeof a === 'object' && typeof b === 'object'
@@ -73,36 +73,41 @@ const select: Fn<any> = (property: Property, content: any, row: Row) => {
     return content;
 }
 
-const conditionTemplate = (condition: (...args: AnyButFunction[]) => boolean, row: Row, property: Property, ...values: any[]) =>
-    row.table.name === property.table.name
-        ? isRowId(property)
-            ? Number(runCondition(condition, row.key, ...values))
-            : Number(runCondition(condition, row.content[property.name], ...values))
-        : FilterResultEnum.Skipped;
+const conditionTemplate = (condition: (...args: AnyButFunction[]) => boolean, row: Row, property: Property | CustomCondition, ...values: any[]) => {
+    if (row.table.name === property.table.name) {
+        if (isCustomCondition(property)) {
+            return Number(runCondition(condition, property.condition(row.content), ...values))
+        } else {
+            return isRowId(property)
+                ? Number(runCondition(condition, row.key, ...values))
+                : Number(runCondition(condition, row.content[property.name], ...values));
+        }
+    }
+}
 
-const whereIn: Fn<Fn<number>> = (property: Property, ...values: any[]) => (row: Row) =>
-        conditionTemplate(isIn, row, property, ...values);
+const whereIn: Fn<Fn<number>> = (property: Property | CustomCondition, ...values: any[]) => (row: Row) =>
+    conditionTemplate(isIn, row, property, ...values);
 
-const eq: Fn<Fn<number>> = (property: Property, value: any) => (row: Row) =>
+const eq: Fn<Fn<number>> = (property: Property | CustomCondition, value: any) => (row: Row) =>
     conditionTemplate(isEq, row, property, value);
 
-const isNull: Fn<Fn<number>> = (property: Property) => eq(property, null);
+const isNull: Fn<Fn<number>> = (property: Property | CustomCondition) => eq(property, null);
 
-const gt: Fn<Fn<number>> = (property: Property, value: number | string) => (row: Row) =>
+const gt: Fn<Fn<number>> = (property: Property | CustomCondition, value: number | string) => (row: Row) =>
     conditionTemplate(isGt, row, property, value);
 
-const lt: Fn<Fn<number>> = (property: Property, value: number | string) => (row: Row) =>
+const lt: Fn<Fn<number>> = (property: Property | CustomCondition, value: number | string) => (row: Row) =>
     conditionTemplate(isLt, row, property, value);
 
-const between: Fn<Fn<number>> = (property: Property, min: number, max: number) => (row: Row) =>
-    conditionTemplate(isBetween, row, property, min, max);
+const between: Fn<Fn<number>> = (property: Property | CustomCondition, between: Between) => (row: Row) =>
+    conditionTemplate(isBetween, row, property, between.min, between.max);
 
-const like: Fn<Fn<number>> = (property: Property, value: any) => (row: Row) =>
+const like: Fn<Fn<number>> = (property: Property | CustomCondition, value: any) => (row: Row) =>
     typeof value === 'string'
         ? conditionTemplate(isLikeString, row, property, value)
         : conditionTemplate(isEq, row, property, value);
 
-const exists: Fn<Fn<number>> = (property:Property, value: any) => () => {
+const exists: Fn<Fn<number>> = (property: Property, value: any) => () => {
     const data = value.getData();
     return Array.isArray(data) ? data.length : FilterResultEnum.Skipped;
 }

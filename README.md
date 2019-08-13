@@ -43,6 +43,18 @@ For more information on how `Chego` works with database drivers, please read [Ch
 
 All the info about the Google firebase you can find [here](https://firebase.google.com/).
 
+## Features
+#### custom conditions
+If you want to check the complex condition for several object properties - without additional queries for object details, you can write a function and use it inside the `where` clause. This function must return a value that can be compared with additional conditions such as eq.
+
+Check the example: We want to know which superhero is 100 km from Batcave. For this we need to know their current position and distance from the Batcave.
+```
+const getSuperheroDistanceFrom = (position) => (heroData) => {
+     return ... math magic with position & heroData.position
+}
+query.select('*').from('superheroes').where(getSuperheroDistanceFrom({lat:42.762488, ,lng:-83.283120})).is.lt(100000);
+```
+
 ## Contribute
 There is still a lot to do, so if you want to be part of the Chego project and make it better, it's great.
 Whether you find a bug or have a feature request, please contact us. With your help, we'll make it a great tool.

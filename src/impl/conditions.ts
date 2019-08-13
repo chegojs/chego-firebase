@@ -35,11 +35,11 @@ const parseExpressionsToFunctions = (list:Condition[], data: Expressions):Condit
             .reduce(injectOperator(operatorTemplate),[]);
         list.push(conditions);
     } else {
-        const template = templates.get(data.type);
         if (data.not) {
             list.push(templates.get(QuerySyntaxEnum.Not)());
         }
-        list.push(template(data.property, data.value));
+        const template = templates.get(data.type);
+        list.push(template(data.custom ? data.custom : data.property, data.value));
     }
     return list;
 }
